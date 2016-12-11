@@ -2,7 +2,7 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Top Block
-# Generated: Sat Dec 10 21:06:04 2016
+# Generated: Sun Dec 11 02:02:00 2016
 ##################################################
 
 if __name__ == '__main__':
@@ -17,6 +17,7 @@ if __name__ == '__main__':
 
 from gnuradio import blocks
 from gnuradio import eng_notation
+from gnuradio import filter
 from gnuradio import gr
 from gnuradio import wxgui
 from gnuradio.eng_option import eng_option
@@ -39,7 +40,7 @@ class top_block(grc_wxgui.top_block_gui):
         ##################################################
         # Variables
         ##################################################
-        self.samp_rate = samp_rate = 37500
+        self.samp_rate = samp_rate = 16e6/208
 
         ##################################################
         # Blocks
@@ -72,6 +73,7 @@ class top_block(grc_wxgui.top_block_gui):
         	y_axis_label="Counts",
         )
         self.Add(self.wxgui_scopesink2_0.win)
+        self.dc_blocker_xx_0 = filter.dc_blocker_ff(128, True)
         self.blocks_uchar_to_float_0 = blocks.uchar_to_float()
         self.blocks_file_source_0 = blocks.file_source(gr.sizeof_char*1, "/dev/ttyUSB0", True)
 
@@ -79,8 +81,9 @@ class top_block(grc_wxgui.top_block_gui):
         # Connections
         ##################################################
         self.connect((self.blocks_file_source_0, 0), (self.blocks_uchar_to_float_0, 0))    
+        self.connect((self.blocks_uchar_to_float_0, 0), (self.dc_blocker_xx_0, 0))    
         self.connect((self.blocks_uchar_to_float_0, 0), (self.wxgui_scopesink2_0, 0))    
-        self.connect((self.blocks_uchar_to_float_0, 0), (self.wxgui_waterfallsink2_0, 0))    
+        self.connect((self.dc_blocker_xx_0, 0), (self.wxgui_waterfallsink2_0, 0))    
 
 
     def get_samp_rate(self):
