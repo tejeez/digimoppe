@@ -120,11 +120,11 @@
     </param>
     <param>
       <key>file</key>
-      <value>/dev/ttyUSB0</value>
+      <value>/tmp/rxsamples</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(392, 243)</value>
+      <value>(232, 243)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -144,7 +144,7 @@
     </param>
     <param>
       <key>type</key>
-      <value>byte</value>
+      <value>short</value>
     </param>
     <param>
       <key>repeat</key>
@@ -156,7 +156,7 @@
     </param>
   </block>
   <block>
-    <key>blocks_uchar_to_float</key>
+    <key>blocks_short_to_float</key>
     <param>
       <key>alias</key>
       <value></value>
@@ -175,7 +175,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(560, 257)</value>
+      <value>(464, 251)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -183,7 +183,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>blocks_uchar_to_float_0</value>
+      <value>blocks_short_to_float_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -192,6 +192,14 @@
     <param>
       <key>minoutbuf</key>
       <value>0</value>
+    </param>
+    <param>
+      <key>scale</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
     </param>
   </block>
   <block>
@@ -429,18 +437,18 @@
   </block>
   <connection>
     <source_block_id>blocks_file_source_0</source_block_id>
-    <sink_block_id>blocks_uchar_to_float_0</sink_block_id>
+    <sink_block_id>blocks_short_to_float_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>blocks_uchar_to_float_0</source_block_id>
+    <source_block_id>blocks_short_to_float_0</source_block_id>
     <sink_block_id>dc_blocker_xx_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>blocks_uchar_to_float_0</source_block_id>
+    <source_block_id>blocks_short_to_float_0</source_block_id>
     <sink_block_id>wxgui_scopesink2_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>

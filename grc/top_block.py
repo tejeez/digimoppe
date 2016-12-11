@@ -2,7 +2,7 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Top Block
-# Generated: Sun Dec 11 02:02:00 2016
+# Generated: Sun Dec 11 22:26:48 2016
 ##################################################
 
 if __name__ == '__main__':
@@ -74,15 +74,15 @@ class top_block(grc_wxgui.top_block_gui):
         )
         self.Add(self.wxgui_scopesink2_0.win)
         self.dc_blocker_xx_0 = filter.dc_blocker_ff(128, True)
-        self.blocks_uchar_to_float_0 = blocks.uchar_to_float()
-        self.blocks_file_source_0 = blocks.file_source(gr.sizeof_char*1, "/dev/ttyUSB0", True)
+        self.blocks_short_to_float_0 = blocks.short_to_float(1, 1)
+        self.blocks_file_source_0 = blocks.file_source(gr.sizeof_short*1, "/tmp/rxsamples", True)
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.blocks_file_source_0, 0), (self.blocks_uchar_to_float_0, 0))    
-        self.connect((self.blocks_uchar_to_float_0, 0), (self.dc_blocker_xx_0, 0))    
-        self.connect((self.blocks_uchar_to_float_0, 0), (self.wxgui_scopesink2_0, 0))    
+        self.connect((self.blocks_file_source_0, 0), (self.blocks_short_to_float_0, 0))    
+        self.connect((self.blocks_short_to_float_0, 0), (self.dc_blocker_xx_0, 0))    
+        self.connect((self.blocks_short_to_float_0, 0), (self.wxgui_scopesink2_0, 0))    
         self.connect((self.dc_blocker_xx_0, 0), (self.wxgui_waterfallsink2_0, 0))    
 
 

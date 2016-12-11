@@ -1,0 +1,27 @@
+Here's some code for a project to modify old Mobira FM transceivers
+for FSK-based packet data or digital voice.
+Instead of using their FM discriminator to demodulate FSK, their 455 kHz
+intermediate frequency is digitized to use a DSP-based demodulator.
+
+Sufficiently old models such as the Mobira RC25 have a varactor-modulated
+crystal oscillator as the FM modulator. Fairly clean and simple FSK modulation
+should be possible by feeding the baseband signal straight to the varactor.
+
+More details on modifying the transceiver for amateur band:
+http://oh3tr.ele.tut.fi/suomi/moppeakatemia/25.shtml#rc25
+We will try to implement FreeDV 2400A to provide a simple alternative
+to an SDR built completely from scratch.
+More details on the mode:
+http://www.rowetel.com/?p=5119
+
+
+Some files here:
+
+digimoppe/digimoppe.ino: software running on an atmega328 Arduino board.
+It transmits samples from ADC to UART and controls the modulator.
+
+grc/: Some gnuradio companion flowgraphs for spectrum analysis.
+
+pc/: Software that runs on Linux, communicates with the Arduino
+and runs the modems.
+
