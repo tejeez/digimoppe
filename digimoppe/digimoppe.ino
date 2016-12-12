@@ -8,12 +8,13 @@ void setup() {
   if(!digitalRead(2)) { // UART test mode
     uarttest = 1;
   } else {
-    // timer1 settings:
-    // clear timer on compare match A: WGM1[3:0] = 0100
+    /* ADC prescaler is 32 for 500 kHz clock.
+       Timer1 prescaler is 8, so counting to 4*14 results in 14 ADC clocks
+       for a sample rate of 16 MHz / 32 / 14 = 35714 Hz. */
     TCCR1A = 0; // WGM10=0, WGM11=0
-    TCCR1B = 1<<WGM12;
-    OCR1A = 200 -1;
-    OCR1B = 1;
+    TCCR1B = 1<<WGM12; // WGM12=1: clear timer on compare match A
+    OCR1A = 4 * 14 -1;
+    OCR1B = 0;
     TIMSK1 = 0; // no interrupts
     TCNT0 = 0;
 
@@ -22,13 +23,12 @@ void setup() {
     ADMUX = (3<<REFS0) | (0<<ADLAR) | (0<<MUX0); // right aligned
     ADCSRB = (5<<ADTS0); // trigger on timer1 compare match B
     DIDR0 = (1<<ADC0D);
-    ADCSRA = (1<<ADIE) | (1<<ADATE) | (4<<ADPS0); // interrupt, auto trigger, prescaler 16
+    ADCSRA = (1<<ADIE) | (1<<ADATE) | (5<<ADPS0); // interrupt, auto trigger, prescaler 32
 
     sei();
     // enable ADC and start conversion last
     ADCSRA |= (1<<ADEN);
     TCCR1B |= (2<<CS10); // start timer1: prescale by 8
-    //ADCSRA |= (1<<ADSC);
   }
 }
 
@@ -51,8 +51,10 @@ void loop() {
 
 ISR(ADC_vect) {
   uint16_t ad;
-  PORTB ^= 1<<4; // PB4 = digital pin 12
+  TIFR1 |= (1<<OCF1B); // there's no timer ISR so we need to clear the interrupt flag here
+
   ad = ADCW;
+  PORTB ^= 1<<4; // PB4 = digital pin 12
   
   if(!txfull) {
     PORTB &= ~(1<<3);
