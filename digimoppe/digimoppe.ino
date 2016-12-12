@@ -3,21 +3,32 @@ uint8_t uarttest = 0;
 void setup() {
   DDRB |= (1<<4) | (1<<3); // PB4 = digital pin 12, PB3 = digital pin 11
   PORTB = 0;
-  Serial.begin(2000000);
+  Serial.begin(1000000);
   pinMode(2, INPUT_PULLUP);
   if(!digitalRead(2)) { // UART test mode
     uarttest = 1;
   } else {
-    //ADMUX = (3<<REFS0) | (1<<ADLAR) | (0<<MUX0); // left aligned: 8-bit result on ADCH
+    // timer1 settings:
+    // clear timer on compare match A: WGM1[3:0] = 0100
+    TCCR1A = 0; // WGM10=0, WGM11=0
+    TCCR1B = 1<<WGM12;
+    OCR1A = 200 -1;
+    OCR1B = 1;
+    TIMSK1 = 0; // no interrupts
+    TCNT0 = 0;
+
+
+    // ADC settings
     ADMUX = (3<<REFS0) | (0<<ADLAR) | (0<<MUX0); // right aligned
-    ADCSRB = (0<<ADTS0); // free running mode
+    ADCSRB = (5<<ADTS0); // trigger on timer1 compare match B
     DIDR0 = (1<<ADC0D);
     ADCSRA = (1<<ADIE) | (1<<ADATE) | (4<<ADPS0); // interrupt, auto trigger, prescaler 16
 
     sei();
     // enable ADC and start conversion last
     ADCSRA |= (1<<ADEN);
-    ADCSRA |= (1<<ADSC);
+    TCCR1B |= (2<<CS10); // start timer1: prescale by 8
+    //ADCSRA |= (1<<ADSC);
   }
 }
 
