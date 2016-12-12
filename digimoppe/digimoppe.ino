@@ -1,10 +1,25 @@
 uint8_t uarttest = 0;
 
+uint8_t mbuf[0x100]; // buffer for modulator data
+volatile uint8_t mwp = 0, mrp = 0; // write and read pointers
+
+volatile uint16_t ad=0;
+volatile uint8_t  adfull=0, mhalffull=0;
+
+
 void setup() {
-  DDRB |= (1<<4) | (1<<3); // PB4 = digital pin 12, PB3 = digital pin 11
+  DDRB |= (1<<4) | (1<<3) | (1<<2); // PB4 = digital pin 12, PB3 = digital pin 11
+  DDRC |= (1<<1) | (1<<2); // modulator
   PORTB = 0;
-  Serial.begin(1000000);
   pinMode(2, INPUT_PULLUP);
+
+  //Serial.begin(1000000);
+  // Serial.begin can't be used if we have own USART interrupt handler
+  UCSR0A = 0; // don't double speed
+  UCSR0B = (1 << RXCIE0) | (1 << RXEN0) | (1<<TXEN0); // enable UART receive interrupt
+  UCSR0C = (0<<UMSEL00) | (0<<UPM00) | (0<<USBS0) | (3<<UCSZ00); // 8N1
+  UBRR0 = 0; // 1 Mbaud
+
   if(!digitalRead(2)) { // UART test mode
     uarttest = 1;
   } else {
@@ -32,20 +47,28 @@ void setup() {
   }
 }
 
-volatile uint8_t txbyte0=0, txbyte1=0, txfull=0;
-
+uint8_t testi=0;
 void loop() {
   if(uarttest) {
     while ( !( UCSR0A & (1<<UDRE0)) );
-    UDR0 = txbyte0;
-    txbyte0++;
+    UDR0 = testi;
+    testi++;
   } else
-  if(txfull) {
+  if(adfull) {
+    uint8_t txbyte0, txbyte1;
+    // send lowest 5 bits first, then highest 5 bits
+    // highest bit of first byte is always 1
+    txbyte0 = 0x80 | (ad & 0x1F);
+    txbyte1 = 0x1F & (ad >> 5);
+    adfull=0;
+    if(mhalffull) {
+      txbyte0 |= 0x40;
+      txbyte1 |= 0x40;
+    }
     while ( !( UCSR0A & (1<<UDRE0)) );
     UDR0 = txbyte0;
     while ( !( UCSR0A & (1<<UDRE0)) );
     UDR0 = txbyte1;
-    txfull=0;
   }
 }
 
@@ -59,20 +82,38 @@ void loop() {
    read the ADC result to avoid the need for separate ADC interrupt,
    saving some time. */
 ISR(TIMER1_COMPB_vect) {
-  uint16_t ad;
-
-  ad = ADCW;
+  uint8_t rp, n;
   PORTB ^= 1<<4; // PB4 = digital pin 12
-  
-  if(!txfull) {
+
+  if(!adfull) {
     PORTB &= ~(1<<3);
-    // send lowest 7 bits in first byte, highest 3 bits in second byte
-    // highest bit of first byte is 1 to allow simple synchronization
-    txbyte0 = 0x80 | (ad & 0x7F);
-    txbyte1 = 0x07 & (ad >> 7);
-    txfull = 1;
+    ad = ADCW;
+    adfull = 1;
   } else {
     PORTB |= 1<<3; // UART too slow, put PB3 high as "error message"
+  }
+
+  rp = mrp;
+  n = mwp - rp; // number of bytes in buffer
+  if(n) {
+    PORTC = mbuf[rp];
+    mrp = rp+1;
+  }
+  mhalffull = (n >= 0x80);
+}
+
+
+ISR(USART_RX_vect) {
+  uint8_t b, nextwp;
+  b = UDR0;
+  nextwp = mwp+1;
+  if(nextwp == mrp) {
+    // full buffer!
+    PORTB |= 1<<2;
+  } else {
+    mbuf[nextwp] = b;
+    mwp = nextwp;
+    PORTB &= ~(1<<2);
   }
 }
 
