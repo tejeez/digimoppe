@@ -8,4 +8,5 @@ mkfifo $TXFIFO
 mkfifo $RXFIFO
 # For some reason the stty must be run again after opening the serial port.
 # Here's a workaround until I learn how the serial port should actually be used.
-./receivesamples $DEV $SPEED < $TXFIFO > $RXFIFO
+#./receivesamples $DEV $SPEED < $TXFIFO > $RXFIFO
+./txtestsignal | ./receivesamples $DEV $SPEED > $RXFIFO

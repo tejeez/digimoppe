@@ -6,12 +6,12 @@ volatile uint8_t mwp = 0, mrp = 0; // write and read pointers
 volatile uint16_t ad=0;
 volatile uint8_t  adfull=0, mhalffull=0;
 
-
+#define MODULATORBITS 0b111110
 void setup() {
-  DDRB |= (1<<4) | (1<<3) | (1<<2); // PB4 = digital pin 12, PB3 = digital pin 11
-  DDRC |= (1<<1) | (1<<2); // modulator
-  PORTB = 0;
   pinMode(2, INPUT_PULLUP);
+  DDRB |= (1<<4) | (1<<3) | (1<<2); // PB4 = digital pin 12, PB3 = digital pin 11
+  DDRC |= MODULATORBITS;
+  PORTB = 0;
 
   //Serial.begin(1000000);
   // Serial.begin can't be used if we have own USART interrupt handler
@@ -96,7 +96,7 @@ ISR(TIMER1_COMPB_vect) {
   rp = mrp;
   n = mwp - rp; // number of bytes in buffer
   if(n) {
-    PORTC = mbuf[rp];
+    PORTC = MODULATORBITS & mbuf[rp];
     mrp = rp+1;
   }
   mhalffull = (n >= 0x80);
