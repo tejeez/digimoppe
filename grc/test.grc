@@ -97,7 +97,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>16e6/208</value>
+      <value>16e6/(32*14)</value>
     </param>
   </block>
   <block>

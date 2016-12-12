@@ -1,6 +1,6 @@
 #!/bin/bash
 export DEV=/dev/ttyUSB0
-export PARAM=2000000 raw
+export PARAM="1000000 raw"
 FIFO=/tmp/rxsamples
 stty -F $DEV $PARAM
 mkfifo $FIFO

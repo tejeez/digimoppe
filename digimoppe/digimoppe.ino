@@ -15,7 +15,7 @@ void setup() {
     TCCR1B = 1<<WGM12; // WGM12=1: clear timer on compare match A
     OCR1A = 4 * 14 -1;
     OCR1B = 0;
-    TIMSK1 = 0; // no interrupts
+    TIMSK1 = 1<<OCIE1B; // interrupt on match B (it also triggers ADC)
     TCNT0 = 0;
 
 
@@ -23,7 +23,7 @@ void setup() {
     ADMUX = (3<<REFS0) | (0<<ADLAR) | (0<<MUX0); // right aligned
     ADCSRB = (5<<ADTS0); // trigger on timer1 compare match B
     DIDR0 = (1<<ADC0D);
-    ADCSRA = (1<<ADIE) | (1<<ADATE) | (5<<ADPS0); // interrupt, auto trigger, prescaler 32
+    ADCSRA = (1<<ADATE) | (5<<ADPS0); // no interrupt, auto trigger, prescaler 32
 
     sei();
     // enable ADC and start conversion last
@@ -49,9 +49,17 @@ void loop() {
   }
 }
 
-ISR(ADC_vect) {
+
+/* Result is read in TIMER1 ISR instead of ADC ISR.
+   This is done because ADC is triggered by the timer interrupt flag
+   and it's not triggered again before the interrupt flag is cleared.
+   It can be cleared manually in ADC ISR but then it's cleared too late
+   resulting in every second trigger to be missed.
+   Using the TIMER1 ISR clears it automatically and we can use it to also
+   read the ADC result to avoid the need for separate ADC interrupt,
+   saving some time. */
+ISR(TIMER1_COMPB_vect) {
   uint16_t ad;
-  TIFR1 |= (1<<OCF1B); // there's no timer ISR so we need to clear the interrupt flag here
 
   ad = ADCW;
   PORTB ^= 1<<4; // PB4 = digital pin 12
