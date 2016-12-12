@@ -1,10 +1,11 @@
 #!/bin/bash
 export DEV=/dev/ttyUSB0
-export PARAM="1000000 raw"
-FIFO=/tmp/rxsamples
-stty -F $DEV $PARAM
-mkfifo $FIFO
+export SPEED=1000000
+TXFIFO=/tmp/txsamples
+RXFIFO=/tmp/rxsamples
+stty -F $DEV $SPEED raw
+mkfifo $TXFIFO
+mkfifo $RXFIFO
 # For some reason the stty must be run again after opening the serial port.
 # Here's a workaround until I learn how the serial port should actually be used.
-(sleep 1; stty -F $DEV $PARAM) &
-./receivesamples < $DEV > $FIFO
+./receivesamples $DEV $SPEED < $TXFIFO > $RXFIFO
