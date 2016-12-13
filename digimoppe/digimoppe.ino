@@ -1,16 +1,40 @@
-uint8_t uarttest = 0;
+/*
+Pinout for Arduino Nano:
+A0 (PC0): Filtered and amplified 455 kHz IF from radio
+A2 (PC2): Less significant bit for 2-bit DAC controlling modulator
+A3 (PC3): More significant bit
+A5 (PC5): PTT control. 1 to transmit, 0 to receive
 
-uint8_t mbuf[0x100]; // buffer for modulator data
-volatile uint8_t mwp = 0, mrp = 0; // write and read pointers
+Debugging outputs:
+12 (PB4): Square wave at frequency half of the ADC sample rate
+11 (PB3): Pulses high if UART is still transmitting when new sample arrives. UART is too slow.
+10 (PB2): Pulses high if modulator buffer gets full. PC sends data too fast.
+*/
+
+
+
+/* mbuf is a buffer for the symbols to be sent to the modulator.
+   The size is 0x100 so we can conveniently use wrap-around of unsigned 8-bit integers
+   when dealing with indexes to the buffer.
+   mwp is the index where buffer is being written,
+   mrp is the index where buffer is being read.
+   Buffer is empty when mwp == mrp.
+   MBUFFILL sets how many bytes to try to keep in the buffer.
+   We ask PC for more data when there's less bytes waiting. */
+uint8_t mbuf[0x100];
+volatile uint8_t mwp = 0, mrp = 0;
+#define MBUFFILL 100
 
 volatile uint16_t ad=0;
-volatile uint8_t  adfull=0, mhalffull=0;
+volatile uint8_t  adfull=0, mhalffull=0, uarttest=0;
 
-#define MODULATORBITS 0b111110
+#define MODULATORBIT 2
+#define PTTBIT 5
+
 void setup() {
   pinMode(2, INPUT_PULLUP);
   DDRB |= (1<<4) | (1<<3) | (1<<2); // PB4 = digital pin 12, PB3 = digital pin 11
-  DDRC |= MODULATORBITS;
+  DDRC |= (3<<MODULATORBIT) | (1<<PTTBIT);
   PORTB = 0;
 
   //Serial.begin(1000000);
@@ -62,6 +86,7 @@ void loop() {
     txbyte1 = 0x1F & (ad >> 5);
     adfull=0;
     if(mhalffull) {
+      // flow control: tell the PC to stop sending data
       txbyte0 |= 0x40;
       txbyte1 |= 0x40;
     }
@@ -73,6 +98,7 @@ void loop() {
 }
 
 
+uint16_t symbolcounter = 0;
 /* Result is read in TIMER1 ISR instead of ADC ISR.
    This is done because ADC is triggered by the timer interrupt flag
    and it's not triggered again before the interrupt flag is cleared.
@@ -93,13 +119,23 @@ ISR(TIMER1_COMPB_vect) {
     PORTB |= 1<<3; // UART too slow, put PB3 high as "error message"
   }
 
-  rp = mrp;
-  n = mwp - rp; // number of bytes in buffer
-  if(n) {
-    PORTC = MODULATORBITS & mbuf[rp];
-    mrp = rp+1;
+  /* This interrupt occurs (16e6 / 32 / 14) times per second.
+     We want to send a symbol 1200 times per second on average.
+     The ratio of these values is 0.0336, or 21/625. */
+  symbolcounter += 21;
+  if(symbolcounter >= 625) {
+    symbolcounter -= 625;
+    rp = mrp;
+    n = mwp - rp; // number of bytes in buffer
+    if(n) {
+      PORTC = ((3 & mbuf[rp])<<MODULATORBIT) | (1<<PTTBIT);
+      mrp = rp+1;
+    } else {
+      // empty buffer: turn transmitter off
+      PORTC = 0;
+    }
+    mhalffull = (n >= MBUFFILL);
   }
-  mhalffull = (n >= 0x80);
 }
 
 
