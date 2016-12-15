@@ -16,12 +16,15 @@ Second highest bit is 1 if modulator buffer is half full.
 #include <stdio.h>
 #include <stdlib.h>
 #include <asm/termbits.h>
+#include <assert.h>
 
-#define RXBUF 32
-#define TXBUF 65
+#define RXBUF 64
+#define TXBUF 2
+#define OUTBUF RXBUF
 int main(int argc, char *argv[]) {
 	ssize_t wr, r, rxbytes, i, bytecount=0;
 	uint8_t rxbuf[RXBUF], txbuf[TXBUF];
+	uint16_t outbuf[OUTBUF];
 	uint8_t b0 = 0, b1 = 0;
 	int prev = 2;
 	int flags, serialspeed;
@@ -40,7 +43,7 @@ int main(int argc, char *argv[]) {
 	term.c_ispeed = serialspeed;
 	term.c_ospeed = serialspeed;
 	r = ioctl(serialport, TCSETS2, &term);
-	if(r < 0) perror("TCSETS2:");
+	if(r < 0) perror("TCSETS2");
 
 	// make input and output pipes nonblocking
 	flags = fcntl(inpipe, F_GETFL, 0);
@@ -51,9 +54,10 @@ int main(int argc, char *argv[]) {
 	for(;;) {
 		uint8_t b;
 		int txready = 1;
+		size_t outp = 0;
 		rxbytes = read(serialport, rxbuf, RXBUF);
 		if(rxbytes <= 0) {
-			perror("read from serial port:");
+			perror("read from serial port");
 			goto err;
 		}
 		for(i = 0; i < rxbytes; i++) {
@@ -62,21 +66,14 @@ int main(int argc, char *argv[]) {
 				b0 = b;
 				if(prev == 0) {
 					fprintf(stderr, "Lost second byte at %zd\n", bytecount+i);
-					wr = write(outpipe, &adczero, sizeof(uint16_t));
-					(void)wr;
+					outbuf[outp++] = adczero;
 				}
 				prev = 0;
 			} else {
 				uint16_t adcword;
 				b1 = b;
 				adcword = ((0x1F & b1) << 5) | (0x1F & b0);
-				wr = write(outpipe, &adcword, sizeof(uint16_t));
-				if(wr <= 0) {
-					perror("write to RX pipe:");
-					if(errno != EWOULDBLOCK) {
-						goto err;
-					}
-				}
+				outbuf[outp++] = adcword;
 
 				if(prev == 1) {
 					fprintf(stderr, "Lost  first byte at %zd\n", bytecount+i);
@@ -85,6 +82,15 @@ int main(int argc, char *argv[]) {
 			}
 			if(b & 0x40) txready = 0; // buffer getting full
 		}
+
+		assert(outp <= OUTBUF);
+		wr = write(outpipe, &outbuf, outp*sizeof(int16_t));
+		if(wr <= 0) {
+			perror("write to RX pipe");
+		} else if((size_t)wr < outp*sizeof(int16_t)) {
+			fprintf(stderr, "Wrote only %zd bytes to output pipe\n", wr);
+		}
+
 		if(txready) {
 			r = read(inpipe, txbuf, TXBUF);
 			if(r > 0) {

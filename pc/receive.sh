@@ -3,7 +3,7 @@ export DEV=/dev/ttyUSB0
 export SPEED=1000000
 TXFIFO=/tmp/txsamples
 RXFIFO=/tmp/rxsamples
-stty -F $DEV $SPEED raw
+stty -F $DEV $SPEED raw -echo
 mkfifo $TXFIFO
 mkfifo $RXFIFO
 # For some reason the stty must be run again after opening the serial port.
