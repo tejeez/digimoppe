@@ -38,7 +38,7 @@ void adf_write_registers(uint32_t *regs) {
 	// correct sequence to write registers
 	for(i = 5; i >= 0; i--) {
 		adf_command(regs[i] | i);
-		usleep(100000);
+		//usleep(100000);
 	}
 }
 
@@ -64,7 +64,7 @@ void adf_init() {
 	r_muxout = 0,
 	r_refdoubler = 0,
 	r_rdiv2 = 0,
-	r_rcount = 4,
+	r_rcount = 3,
 	r_doublebuffer = 0,
 	r_cp_current = 15, // 0 = minimum, 15 = maximum
 	r_ldf = 0, // lock detect: 0 for frac-N, 1 for int-N
@@ -82,8 +82,8 @@ void adf_init() {
 	r_clkdiv = 0,
 	
 	r_feedback_sel = 0, // 0 from divider, 1 from VCO
-	r_rf_div = 5, // 2**x
-	r_bandsel_clkdiv = 10, // ?
+	r_rf_div = 4, // 2**x
+	r_bandsel_clkdiv = 100, // band select clock should be below 125 kHz
 	r_vco_powerdown = 0,
 	r_mtld = 0,
 	r_auxout = 0,
@@ -119,7 +119,7 @@ void adf_init() {
 	regs[5] = (r_ld_pin_mode << 22);
 	adf_write_registers(regs);
 
-	usleep(100000);
+	usleep(500000);
 	// enable phase adjust to disable band selection
 	r_phase_adjust = 1;
 	regs[1] = (r_phase_adjust << 28) | (r_prescaler << 27) |
@@ -155,6 +155,17 @@ int main(int argc, char *argv[]) {
 	/*flags = fcntl(inpipe, F_GETFL, 0);
 	fcntl(inpipe, F_SETFL, flags | O_NONBLOCK);*/
 
+	// waiting for Arduino to get ready to receive data
+	int notready=1;
+	while(notready) {
+		notready = 0;
+		r = read(serialport, rxbuf, RXBUF);
+		fprintf(stderr, "%zd ", r);
+		for(i = 0; i < r; i++) {
+			if(rxbuf[r] != 17) notready = 1;
+		}
+	}
+	fprintf(stderr, "\nInitializing ADF4351\n");
 	adf_init();
 
 	for(;;) {

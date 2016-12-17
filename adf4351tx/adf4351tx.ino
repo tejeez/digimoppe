@@ -37,17 +37,17 @@ volatile uint8_t /*mhalffull=0, */txflag=0;
 
 void setup() {
   SPI.begin();
-  SPI.setClockDivider(16);
+  SPI.setClockDivider(8);
   SPI.setDataMode(SPI_MODE0);
   LE_PORT_DDR |= 1<<LE_BIT;
   DEBUG_PORT_DDR |= (1 << DEBUG_FREQ_BIT) | (1<<DEBUG_OVERFLOW_BIT);
 
   //Serial.begin(1000000);
   // Serial.begin can't be used if we have own USART interrupt handler
-  UCSR0A = 0; // don't double speed
+  UCSR0A = 1<<U2X0; // double speed
   UCSR0B = (1 << RXCIE0) | (1 << RXEN0) | (1<<TXEN0); // enable UART receive interrupt
   UCSR0C = (0<<UMSEL00) | (0<<UPM00) | (0<<USBS0) | (3<<UCSZ00); // 8N1
-  UBRR0 = 0; // 1 Mbaud
+  UBRR0 = 16; // 117647 baud
 
   /* Timer1 prescaler is 8, so counting to 56 results in
      a sample rate of 16 MHz / 8 / 56 = 35714 Hz. */
@@ -80,6 +80,11 @@ void loop() {
       SPI.transfer(mbuf[rp+2]);
       SPI.transfer(mbuf[rp+3]);
       LE_PORT |= 1<<LE_BIT;
+      __asm__("nop");
+      __asm__("nop");
+      __asm__("nop");
+      __asm__("nop");
+      LE_PORT &= ~(1<<LE_BIT);
 
       mrp = rp+4;
       // could turn transmitter on here
