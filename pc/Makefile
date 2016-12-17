@@ -1,7 +1,10 @@
+TARGETS=receivesamples uarttest txtestsignal adf4351pc
+
 %: %.c
 	gcc $^ -o $@ -Wall -Wextra -O3
 
-all: receivesamples uarttest txtestsignal
+
+all: $(TARGETS)
 
 receivesamples: receivesamples.c
 
@@ -9,7 +12,9 @@ uarttest: uarttest.c
 
 txtestsignal: txtestsignal.c
 
+adf4351pc: adf4351pc.c
+
 clean:
-	rm receivesamples uarttest txtestsignal
+	rm $(TARGETS)
 
 .PHONY: all clean
