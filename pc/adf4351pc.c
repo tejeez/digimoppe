@@ -38,6 +38,7 @@ void adf_write_registers(uint32_t *regs) {
 	// correct sequence to write registers
 	for(i = 5; i >= 0; i--) {
 		adf_command(regs[i] | i);
+		usleep(100000);
 	}
 }
 
@@ -63,7 +64,7 @@ void adf_init() {
 	r_muxout = 0,
 	r_refdoubler = 0,
 	r_rdiv2 = 0,
-	r_rcount = 1,
+	r_rcount = 4,
 	r_doublebuffer = 0,
 	r_cp_current = 15, // 0 = minimum, 15 = maximum
 	r_ldf = 0, // lock detect: 0 for frac-N, 1 for int-N
@@ -81,7 +82,7 @@ void adf_init() {
 	r_clkdiv = 0,
 	
 	r_feedback_sel = 0, // 0 from divider, 1 from VCO
-	r_rf_div = 3, // 2**x
+	r_rf_div = 5, // 2**x
 	r_bandsel_clkdiv = 10, // ?
 	r_vco_powerdown = 0,
 	r_mtld = 0,
@@ -159,6 +160,7 @@ int main(int argc, char *argv[]) {
 	for(;;) {
 		int overflowed = 0;
 		r = read(serialport, rxbuf, RXBUF);
+		//fprintf(stderr, "%zd ", r);
 		if(r <= 0) {
 			perror("read from serial port");
 			goto err;
@@ -169,16 +171,21 @@ int main(int argc, char *argv[]) {
 		if(overflowed) {
 			fprintf(stderr, "Overflow in Arduino buffer!\n");
 		}
-		if(rxbuf[r-1] == 17) { // xon received?
-			// ready to receive data
-			r = read(inpipe, txbuf, TXBUF);
+		if(rxbuf[r-1] == 17) { // xon received last? ready to transmit
+			ssize_t txmax;
+			txmax = r+1; // we should send a bit more than one command per one received byte
+			if(txmax >= TXBUF) txmax = TXBUF;
+
+			r = read(inpipe, txbuf, txmax);
 			if(r <= 0 && errno != EWOULDBLOCK) {
 				perror("read from tx pipe");
 				goto err;
 			}
 			for(i = 0; i < r; i++) {
+				uint32_t r_frac_new;
 				// change fractional part in synthesizer
-				adf_command((r_int << 15) | ((r_frac + (3&txbuf[i])) << 3));
+				r_frac_new = r_frac + (3 & txbuf[i]);
+				adf_command((r_int << 15) | (r_frac_new << 3) | 0);
 			}
 		}
 	}

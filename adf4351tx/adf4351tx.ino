@@ -20,7 +20,7 @@ Connect CE on PLL board to its 3.3 V regulator.
    Buffer is empty when mwp == mrp.
    MBUFFILL sets how many bytes to try to keep in the buffer.
    We ask PC for more data when there's less bytes waiting. */
-uint8_t mbuf[0x100];
+volatile uint8_t mbuf[0x100];
 volatile uint8_t mwp = 0, mrp = 0;
 #define MBUFFILL 100
 
