@@ -47,7 +47,8 @@ void setup() {
   UCSR0A = 1<<U2X0; // double speed
   UCSR0B = (1 << RXCIE0) | (1 << RXEN0) | (1<<TXEN0); // enable UART receive interrupt
   UCSR0C = (0<<UMSEL00) | (0<<UPM00) | (0<<USBS0) | (3<<UCSZ00); // 8N1
-  UBRR0 = 16; // 117647 baud
+  //UBRR0 = 16; // 117647 baud
+  UBRR0 = 1; // 1000000 baud
 
   /* Timer1 prescaler is 8, so counting to 56 results in
      a sample rate of 16 MHz / 8 / 56 = 35714 Hz. */
@@ -62,7 +63,7 @@ void setup() {
   TCCR1B |= (2<<CS10); // start timer1: prescale by 8
 }
 
-
+uint8_t txonprev = 0;
 void loop() {
   uint8_t rp, n;
   uint8_t mhalffull;
@@ -88,12 +89,17 @@ void loop() {
 
       mrp = rp+4;
       // could turn transmitter on here
+      txonprev = 1;
     } else {
       // could turn transmitter off here
+      if(txonprev) UDR0 = 'U'; // underflow
+      txonprev = 0;
     }
     mhalffull = (n >= MBUFFILL);
-    if(mhalffull) UDR0 = 19; // xoff
-    else UDR0 = 17; // xon
+    if(UCSR0A & (1<<UDRE0)) {
+      if(mhalffull) UDR0 = 19; // xoff
+      else UDR0 = 17; // xon
+    }
   }
 }
 

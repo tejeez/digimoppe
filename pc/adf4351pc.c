@@ -141,7 +141,7 @@ void adf_init() {
 int main(int argc, char *argv[]) {
 	ssize_t r, i;
 	uint8_t rxbuf[RXBUF], txbuf[TXBUF];
-	int serialspeed;
+	int flags, serialspeed;
 	int inpipe=0;
 	struct termios2 term2;
 
@@ -159,8 +159,8 @@ int main(int argc, char *argv[]) {
 	if(r < 0) perror("TCSETS2");
 
 	// make input pipe nonblocking
-	/*flags = fcntl(inpipe, F_GETFL, 0);
-	fcntl(inpipe, F_SETFL, flags | O_NONBLOCK);*/
+	flags = fcntl(inpipe, F_GETFL, 0);
+	fcntl(inpipe, F_SETFL, flags | O_NONBLOCK);
 
 	// waiting for Arduino to get ready to receive data
 	int notready=1;
@@ -176,7 +176,7 @@ int main(int argc, char *argv[]) {
 	adf_init();
 
 	for(;;) {
-		int overflowed = 0;
+		int overflowed = 0, underflowed = 0;
 		r = read(serialport, rxbuf, RXBUF);
 		//fprintf(stderr, "%zd ", r);
 		if(r <= 0) {
@@ -185,10 +185,13 @@ int main(int argc, char *argv[]) {
 		}
 		for(i = 0; i < r; i++) {
 			if(rxbuf[r] == 'O') overflowed = 1;
+			if(rxbuf[r] == 'U') underflowed = 1;
 		}
-		if(overflowed) {
+		if(overflowed)
 			fprintf(stderr, "Overflow in Arduino buffer!\n");
-		}
+		if(underflowed)
+			fprintf(stderr, "Underflow in Arduino buffer!\n");
+
 		if(rxbuf[r-1] == 17) { // xon received last? ready to transmit
 			ssize_t txmax;
 			txmax = r+1; // we should send a bit more than one command per one received byte
