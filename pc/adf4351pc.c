@@ -128,24 +128,19 @@ void adf_init() {
 }
 
 
-#define TXBUF 8
+#define RXBUF 15
+#define TXBUF 16
 int main(int argc, char *argv[]) {
 	ssize_t r, i;
-	uint8_t txbuf[TXBUF];
+	uint8_t rxbuf[RXBUF], txbuf[TXBUF];
 	int serialspeed;
 	int inpipe=0;
-	struct termios term1;
 	struct termios2 term2;
 
 	if(argc < 3) return 1;
 	serialspeed = atoi(argv[2]);
 	serialport = open(argv[1], O_RDWR);
 	if(serialport < 0) return 2;
-
-	ioctl(serialport, TCGETS, &term1);
-	term1.c_cflag |= IXON; // use XON/XOFF flow control on output
-	r = ioctl(serialport, TCSETS, &term1);
-	if(r < 0) perror("TCSETS");
 
 	ioctl(serialport, TCGETS2, &term2);
 	term2.c_cflag &= ~CBAUD;
@@ -162,13 +157,29 @@ int main(int argc, char *argv[]) {
 	adf_init();
 
 	for(;;) {
-		r = read(inpipe, txbuf, TXBUF);
+		int overflowed = 0;
+		r = read(serialport, rxbuf, RXBUF);
 		if(r <= 0) {
-			perror("read from tx pipe");
+			perror("read from serial port");
 			goto err;
 		}
 		for(i = 0; i < r; i++) {
-			adf_command((r_int << 15) | ((r_frac + (3&txbuf[i])) << 3));
+			if(rxbuf[r] == 'O') overflowed = 1;
+		}
+		if(overflowed) {
+			fprintf(stderr, "Overflow in Arduino buffer!\n");
+		}
+		if(rxbuf[r-1] == 17) { // xon received?
+			// ready to receive data
+			r = read(inpipe, txbuf, TXBUF);
+			if(r <= 0 && errno != EWOULDBLOCK) {
+				perror("read from tx pipe");
+				goto err;
+			}
+			for(i = 0; i < r; i++) {
+				// change fractional part in synthesizer
+				adf_command((r_int << 15) | ((r_frac + (3&txbuf[i])) << 3));
+			}
 		}
 	}
 	err:
