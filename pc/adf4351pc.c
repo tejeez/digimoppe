@@ -44,6 +44,8 @@ void adf_write_registers(uint32_t *regs) {
 
 uint32_t r_int = 43, r_frac = 1255;
 
+int ghz = 1; // 1 for 23cm, 0 for 2m
+
 void adf_init() {
 	/*
 	Modulus must be below 4095.
@@ -93,6 +95,11 @@ void adf_init() {
 	r_outpower = 3,   // 3 = maximum
 	r_ld_pin_mode = 1 // 1 = lock detect
 	;
+	if(ghz) {
+		// 23 cm
+		r_rf_div = 1;
+		r_int = 375;
+	}
 	assert(r_int < 1<<16);
 	assert(r_frac < 1<<12);
 	assert(r_modulus < 1<<12);
@@ -195,7 +202,7 @@ int main(int argc, char *argv[]) {
 			for(i = 0; i < r; i++) {
 				uint32_t r_frac_new;
 				// change fractional part in synthesizer
-				r_frac_new = r_frac + (3 & txbuf[i]);
+				r_frac_new = r_frac - (3 & txbuf[i]);
 				adf_command((r_int << 15) | (r_frac_new << 3) | 0);
 			}
 		}
