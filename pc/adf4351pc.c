@@ -41,17 +41,23 @@ void adf_write_registers(uint32_t *regs) {
 	}
 }
 
-
+uint32_t r_int = 43, r_frac = 1255;
 
 void adf_init() {
+	/*
+	Modulus must be below 4095.
+	Using R counter of 3 on 10 MHz reference allows nearly
+	1200 Hz step by using a modulus of 2778:
+	10e6 / 3 / 2778 = 1200.336
+	*/
 	uint32_t regs[6];
 	uint32_t
-	r_int = 43,
-	r_frac = 400,
+	/*r_int = 43,
+	r_frac = 1255,*/
 	r_phase_adjust = 0,
 	r_prescaler = 0,
 	r_phase = 0,
-	r_modulus = 1000,
+	r_modulus = 2778,
 	
 	r_lownoise = 0,
 	r_muxout = 0,
@@ -122,49 +128,47 @@ void adf_init() {
 }
 
 
-#define RXBUF 1
-#define TXBUF 2
-#define OUTBUF RXBUF
+#define TXBUF 8
 int main(int argc, char *argv[]) {
-	ssize_t r, rxbytes;
-	uint8_t rxbuf[RXBUF], txbuf[TXBUF];
-	int flags, serialspeed;
+	ssize_t r, i;
+	uint8_t txbuf[TXBUF];
+	int serialspeed;
 	int inpipe=0;
-	struct termios2 term;
+	struct termios term1;
+	struct termios2 term2;
 
 	if(argc < 3) return 1;
 	serialspeed = atoi(argv[2]);
 	serialport = open(argv[1], O_RDWR);
 	if(serialport < 0) return 2;
 
-	ioctl(serialport, TCGETS2, &term);
-	term.c_cflag &= ~CBAUD;
-	term.c_cflag |= BOTHER;
-	term.c_ispeed = serialspeed;
-	term.c_ospeed = serialspeed;
-	r = ioctl(serialport, TCSETS2, &term);
+	ioctl(serialport, TCGETS, &term1);
+	term1.c_cflag |= IXON; // use XON/XOFF flow control on output
+	r = ioctl(serialport, TCSETS, &term1);
+	if(r < 0) perror("TCSETS");
+
+	ioctl(serialport, TCGETS2, &term2);
+	term2.c_cflag &= ~CBAUD;
+	term2.c_cflag |= BOTHER;
+	term2.c_ispeed = serialspeed;
+	term2.c_ospeed = serialspeed;
+	r = ioctl(serialport, TCSETS2, &term2);
 	if(r < 0) perror("TCSETS2");
 
 	// make input pipe nonblocking
-	flags = fcntl(inpipe, F_GETFL, 0);
-	fcntl(inpipe, F_SETFL, flags | O_NONBLOCK);
+	/*flags = fcntl(inpipe, F_GETFL, 0);
+	fcntl(inpipe, F_SETFL, flags | O_NONBLOCK);*/
 
 	adf_init();
 
 	for(;;) {
-		int txready = 1;
-		rxbytes = read(serialport, rxbuf, RXBUF);
-		if(rxbytes <= 0) {
-			perror("read from serial port");
+		r = read(inpipe, txbuf, TXBUF);
+		if(r <= 0) {
+			perror("read from tx pipe");
 			goto err;
 		}
-		txready = (rxbuf[0] == 17);
-
-		if(txready) {
-			r = read(inpipe, txbuf, TXBUF);
-			if(r > 0) {
-				// TODO
-			}
+		for(i = 0; i < r; i++) {
+			adf_command((r_int << 15) | ((r_frac + (3&txbuf[i])) << 3));
 		}
 	}
 	err:

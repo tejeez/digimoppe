@@ -24,7 +24,7 @@ uint8_t mbuf[0x100];
 volatile uint8_t mwp = 0, mrp = 0;
 #define MBUFFILL 100
 
-volatile uint8_t mhalffull=0, txflag=0;
+volatile uint8_t /*mhalffull=0, */txflag=0;
 
 #define LE_PORT PORTD
 #define LE_PORT_DDR DDRD
@@ -65,6 +65,7 @@ void setup() {
 
 void loop() {
   uint8_t rp, n;
+  uint8_t mhalffull;
   if(txflag) {
     txflag = 0;
     rp = mrp;
@@ -86,6 +87,8 @@ void loop() {
       // could turn transmitter off here
     }
     mhalffull = (n >= MBUFFILL);
+    if(mhalffull) UDR0 = 19; // xoff
+    else UDR0 = 17; // xon
   }
 }
 
@@ -94,8 +97,6 @@ uint16_t symbolcounter = 0;
 ISR(TIMER1_COMPB_vect) {
   DEBUG_PORT ^= 1<<DEBUG_FREQ_BIT; // PB4 = digital pin 12
 
-  if(mhalffull) UDR0 = 19; // xoff
-  else UDR0 = 17; // xon
 
   /* This interrupt occurs (16e6 / 8 / 56) times per second.
      We want to send a symbol 1200 times per second on average.
