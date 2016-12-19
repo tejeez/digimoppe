@@ -87,6 +87,7 @@ int main(int argc, char *argv[]) {
 		wr = write(outpipe, &outbuf, outp*sizeof(int16_t));
 		if(wr <= 0) {
 			perror("write to RX pipe");
+			goto err;
 		} else if((size_t)wr < outp*sizeof(int16_t)) {
 			fprintf(stderr, "Wrote only %zd bytes to output pipe\n", wr);
 		}
